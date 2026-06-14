@@ -4,8 +4,8 @@ api:
   addr: ":8443"
   tls_cert: "cert.pem"
   tls_key: "key.pem"
-  jwt_secret: "my-super-secret-key-2026!"
-  admin_password: "admin"
+  jwt_secret: "<YOUR_JWT_SECRET_HERE>"
+  admin_password: "<YOUR_ADMIN_PASSWORD_HERE>"
 
 workspaces:
   - name: aws-s3-test
