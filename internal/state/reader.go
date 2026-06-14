@@ -36,6 +36,8 @@ func (r *DefaultReader) Read(ctx context.Context, cfg model.StateConfig) ([]byte
 		return readHTTP(ctx, cfg.Path)
 	case "s3":
 		return readS3(ctx, cfg)
+	case "tfc", "remote":
+		return readTFC(ctx, cfg)
 	default:
 		return nil, fmt.Errorf("unsupported state backend: %s", cfg.Backend)
 	}

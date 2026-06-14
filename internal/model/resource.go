@@ -75,30 +75,40 @@ const (
 	ScanStatusFailed    = "failed"
 )
 
+// AuthConfig holds provider authentication details (e.g. OIDC, assume role).
+type AuthConfig struct {
+	RoleARN              string `json:"role_arn,omitempty" yaml:"role_arn,omitempty"`
+	WebIdentityTokenFile string `json:"web_identity_token_file,omitempty" yaml:"web_identity_token_file,omitempty"`
+	Profile              string `json:"profile,omitempty" yaml:"profile,omitempty"`
+}
+
 // Workspace represents a configured drift detection target.
 type Workspace struct {
-	ID       string         `json:"id"`
-	Name     string         `json:"name"`
-	Provider string         `json:"provider"`
-	State    StateConfig    `json:"state"`
-	Regions  []string       `json:"regions"`
-	Compare  CompareConfig  `json:"compare"`
+	ID       string          `json:"id"`
+	Name     string          `json:"name"`
+	Provider string          `json:"provider"`
+	Auth     *AuthConfig     `json:"auth,omitempty" yaml:"auth,omitempty"`
+	State    StateConfig     `json:"state"`
+	Regions  []string        `json:"regions"`
+	Compare  CompareConfig   `json:"compare"`
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 }
 
 // StateConfig describes where Terraform state is stored.
 type StateConfig struct {
-	Backend string            `json:"backend" yaml:"backend"`
-	Path    string            `json:"path,omitempty" yaml:"path,omitempty"`
-	Bucket  string            `json:"bucket,omitempty" yaml:"bucket,omitempty"`
-	Key     string            `json:"key,omitempty" yaml:"key,omitempty"`
-	Region  string            `json:"region,omitempty" yaml:"region,omitempty"`
-	Extra   map[string]string `json:"extra,omitempty" yaml:"extra,omitempty"`
+	Backend     string            `json:"backend" yaml:"backend"`
+	Path        string            `json:"path,omitempty" yaml:"path,omitempty"`
+	Bucket      string            `json:"bucket,omitempty" yaml:"bucket,omitempty"`
+	Key         string            `json:"key,omitempty" yaml:"key,omitempty"`
+	Region      string            `json:"region,omitempty" yaml:"region,omitempty"`
+	WorkspaceID string            `json:"workspace_id,omitempty" yaml:"workspace_id,omitempty"` // For TFC
+	Token       string            `json:"token,omitempty" yaml:"token,omitempty"`               // For TFC
+	Extra       map[string]string `json:"extra,omitempty" yaml:"extra,omitempty"`
 }
 
 // CompareConfig controls drift comparison behavior.
 type CompareConfig struct {
-	IgnoreTags      []string `json:"ignore_tags" yaml:"ignore_tags"`
+	IgnoreTags       []string `json:"ignore_tags" yaml:"ignore_tags"`
 	IgnoreAttributes []string `json:"ignore_attributes" yaml:"ignore_attributes"`
 }
 
@@ -109,7 +119,7 @@ type ScheduleConfig struct {
 
 // ResourceSelector targets specific resources for cloud fetch.
 type ResourceSelector struct {
-	Type   string
-	Region string
+	Type    string
+	Region  string
 	CloudID string
 }

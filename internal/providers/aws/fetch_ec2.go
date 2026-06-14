@@ -119,9 +119,9 @@ func fetchSubnets(ctx context.Context, client *ec2.Client, region string, expect
 		}
 		attrs := map[string]any{
 			"cidr_block":              aws.ToString(subnet.CidrBlock),
-			"vpc_id":                    aws.ToString(subnet.VpcId),
-			"map_public_ip_on_launch":   subnet.MapPublicIpOnLaunch,
-			"availability_zone":         aws.ToString(subnet.AvailabilityZone),
+			"vpc_id":                  aws.ToString(subnet.VpcId),
+			"map_public_ip_on_launch": subnet.MapPublicIpOnLaunch,
+			"availability_zone":       aws.ToString(subnet.AvailabilityZone),
 		}
 		resources = append(resources, baseResource("aws_subnet", id, name, region, attrs, tags))
 	}
@@ -168,9 +168,9 @@ func normalizeRules(perms []ec2types.IpPermission) []map[string]any {
 	var rules []map[string]any
 	for _, p := range perms {
 		rule := map[string]any{
-			"protocol":   aws.ToString(p.IpProtocol),
-			"from_port":  p.FromPort,
-			"to_port":    p.ToPort,
+			"protocol":  aws.ToString(p.IpProtocol),
+			"from_port": p.FromPort,
+			"to_port":   p.ToPort,
 		}
 		var cidrs []string
 		for _, r := range p.IpRanges {

@@ -11,8 +11,8 @@ import (
 
 // File represents the tfdriftctl.yaml configuration.
 type File struct {
-	Database string            `yaml:"database"`
-	API      APIConfig         `yaml:"api"`
+	Database   string            `yaml:"database"`
+	API        APIConfig         `yaml:"api"`
 	Workspaces []model.Workspace `yaml:"workspaces"`
 }
 

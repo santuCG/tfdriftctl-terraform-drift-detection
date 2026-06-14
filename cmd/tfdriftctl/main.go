@@ -98,6 +98,7 @@ func newScanCmd(cfgFile *string) *cobra.Command {
 				opts.WorkspaceID = ws.ID
 				opts.WorkspaceName = ws.Name
 				opts.Provider = ws.Provider
+				opts.Auth = ws.Auth
 				opts.State = ws.State
 				opts.Regions = ws.Regions
 				opts.Compare = ws.Compare

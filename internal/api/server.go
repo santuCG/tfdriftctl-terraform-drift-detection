@@ -186,6 +186,7 @@ func (s *Server) handleTriggerScan(w http.ResponseWriter, r *http.Request) {
 		WorkspaceID:   ws.ID,
 		WorkspaceName: ws.Name,
 		Provider:      ws.Provider,
+		Auth:          ws.Auth,
 		State:         ws.State,
 		Regions:       ws.Regions,
 		Compare:       ws.Compare,

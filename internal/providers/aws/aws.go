@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/tfdriftctl/tfdriftctl/internal/model"
 )
 
@@ -30,9 +33,9 @@ func (p *Provider) SupportedTypes() []string {
 	}
 }
 
-func (p *Provider) FetchResources(ctx context.Context, expected []model.Resource, regions []string) ([]model.Resource, error) {
+func (p *Provider) FetchResources(ctx context.Context, expected []model.Resource, workspace model.Workspace) ([]model.Resource, error) {
 	regionSet := make(map[string]bool)
-	for _, r := range regions {
+	for _, r := range workspace.Regions {
 		regionSet[r] = true
 	}
 	for _, e := range expected {
@@ -57,7 +60,31 @@ func (p *Provider) FetchResources(ctx context.Context, expected []model.Resource
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
+			var cfg aws.Config
+			var err error
+
+			if workspace.Auth != nil && workspace.Auth.WebIdentityTokenFile != "" && workspace.Auth.RoleARN != "" {
+				baseCfg, bErr := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
+				if bErr != nil {
+					mu.Lock()
+					errs = append(errs, fmt.Errorf("region %s load base config: %w", region, bErr))
+					mu.Unlock()
+					return
+				}
+				stsClient := sts.NewFromConfig(baseCfg)
+				appRoleProvider := stscreds.NewWebIdentityRoleProvider(
+					stsClient,
+					workspace.Auth.RoleARN,
+					stscreds.IdentityTokenFile(workspace.Auth.WebIdentityTokenFile),
+				)
+				cfg, err = awsconfig.LoadDefaultConfig(ctx,
+					awsconfig.WithRegion(region),
+					awsconfig.WithCredentialsProvider(aws.NewCredentialsCache(appRoleProvider)),
+				)
+			} else {
+				cfg, err = awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
+			}
+
 			if err != nil {
 				mu.Lock()
 				errs = append(errs, fmt.Errorf("region %s: %w", region, err))
@@ -134,4 +161,3 @@ func baseResource(resType, cloudID, name, region string, attrs map[string]any, t
 		Source:     "cloud",
 	}
 }
-

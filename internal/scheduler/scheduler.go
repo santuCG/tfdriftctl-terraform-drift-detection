@@ -74,6 +74,7 @@ func (s *Scheduler) registerWorkspace(ws *model.Workspace, cronExpr string) erro
 			WorkspaceID:   wsCopy.ID,
 			WorkspaceName: wsCopy.Name,
 			Provider:      wsCopy.Provider,
+			Auth:          wsCopy.Auth,
 			State:         wsCopy.State,
 			Regions:       wsCopy.Regions,
 			Compare:       wsCopy.Compare,

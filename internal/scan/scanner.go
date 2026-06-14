@@ -27,6 +27,7 @@ type Options struct {
 	WorkspaceID   string
 	WorkspaceName string
 	Provider      string
+	Auth          *model.AuthConfig
 	State         model.StateConfig
 	Regions       []string
 	Compare       model.CompareConfig
@@ -77,7 +78,16 @@ func (s *Scanner) Run(ctx context.Context, opts Options) (*model.DriftReport, er
 		if !ok {
 			return s.failScan(ctx, report, fmt.Errorf("unsupported provider: %s", opts.Provider))
 		}
-		actual, err = provider.FetchResources(ctx, expected, opts.Regions)
+		ws := model.Workspace{
+			ID:       opts.WorkspaceID,
+			Name:     opts.WorkspaceName,
+			Provider: opts.Provider,
+			Auth:     opts.Auth,
+			State:    opts.State,
+			Regions:  opts.Regions,
+			Compare:  opts.Compare,
+		}
+		actual, err = provider.FetchResources(ctx, expected, ws)
 		if err != nil {
 			fetchErrors = append(fetchErrors, err.Error())
 		}

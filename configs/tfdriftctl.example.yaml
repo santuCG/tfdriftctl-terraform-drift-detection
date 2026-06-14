@@ -8,15 +8,48 @@ api:
   admin_password: "<YOUR_ADMIN_PASSWORD_HERE>"
 
 workspaces:
-  - name: aws-s3-test
+  # Example 1: Local state file with default AWS config
+  - name: aws-local-state
     provider: aws
     state:
       backend: local
       path: example-aws-infra/terraform.tfstate
     regions:
       - us-east-1
+
+  # Example 2: S3 backend state with AWS OIDC Auth (Web Identity)
+  - name: aws-remote-s3
+    provider: aws
+    auth:
+      role_arn: "arn:aws:iam::123456789012:role/MyDriftScanRole"
+      web_identity_token_file: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    state:
+      backend: s3
+      bucket: my-terraform-state-bucket
+      key: prod/terraform.tfstate
+      region: us-east-1
+    regions:
+      - us-east-1
+      - us-west-2
     compare:
       ignore_tags:
         - tfdriftctl_scan
-    schedule:
-      cron: "0 */6 * * *"
+
+  # Example 3: Terraform Cloud (TFC) state backend
+  - name: aws-remote-tfc
+    provider: aws
+    state:
+      backend: tfc
+      workspace_id: "ws-XXXXXXXXXXXXXXXX"
+      token: "<YOUR_TFC_API_TOKEN>"
+    regions:
+      - us-east-1
+
+  # Example 4: Azure cloud provider test
+  - name: azure-example
+    provider: azure
+    state:
+      backend: local
+      path: example-azure-infra/terraform.tfstate
+    regions:
+      - eastus
