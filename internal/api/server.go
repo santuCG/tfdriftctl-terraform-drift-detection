@@ -62,7 +62,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/v1/workspaces/{id}/schedules", s.handleDeleteSchedule)
 	s.mux.HandleFunc("POST /api/v1/login", s.handleLogin)
 	s.mux.HandleFunc("GET /", s.handleDashboard)
-	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 }
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {

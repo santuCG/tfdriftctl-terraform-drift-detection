@@ -27,11 +27,18 @@ Cloud APIs      -> Cloud Fetcher -> Extractor -> Actual Model  -> Drift Engine -
 Follow these steps in order to run `tfdriftctl` on your local machine.
 
 ### 1. Generate TLS Certificates
-The API server runs securely over HTTPS. Generate a local self-signed certificate by running:
+The API server runs securely over HTTPS. Generate a local self-signed certificate by running the following in your terminal:
+
+**On Mac / Linux:**
 ```bash
 go run $(go env GOROOT)/src/crypto/tls/generate_cert.go --host localhost
 ```
-*(For Windows PowerShell, you can use the provided script: `.\scripts\generate-cert.ps1`)*
+
+**On Windows (PowerShell):**
+```powershell
+$goRoot = go env GOROOT
+go run "$goRoot\src\crypto\tls\generate_cert.go" --host localhost
+```
 
 This will generate `cert.pem` and `key.pem` in your project root.
 
@@ -53,33 +60,36 @@ workspaces:
 ```
 
 ### 3. Build the Application
-Compile the server and the CLI tools:
+Compile the server and the CLI tools (if you are on Windows, append `.exe` to the output files as shown below so Windows knows they are runnable programs):
+
 ```bash
 # Build the API Server
-go build -o bin/drift-server ./cmd/drift-server
+go build -o bin/drift-server.exe ./cmd/drift-server
 
 # Build the CLI
-go build -o bin/tfdriftctl ./cmd/tfdriftctl
+go build -o bin/tfdriftctl.exe ./cmd/tfdriftctl
 ```
 
 ### 4. Start the Server
 Run the API server in your terminal:
 ```bash
-./bin/drift-server -config configs/tfdriftctl.yaml
+./bin/drift-server.exe -config configs/tfdriftctl.yaml
 ```
 
 ### 5. Authenticate & Trigger a Scan
 In a new terminal window, authenticate with your password to receive a JWT token:
 ```bash
-# Login
+# 1. Login to get your token
 curl -k -X POST https://localhost:8443/api/v1/login -d '{"password": "YOUR_ADMIN_PASSWORD"}'
+
+# 2. List your workspaces to get your internal Workspace ID
+curl -k -H "Authorization: Bearer YOUR_TOKEN" https://localhost:8443/api/v1/workspaces
+
+# 3. Trigger a scan using the Workspace ID from the previous step
+curl -k -H "Authorization: Bearer YOUR_TOKEN" -X POST https://localhost:8443/api/v1/workspaces/YOUR_WORKSPACE_ID/scans
 ```
 
-Copy the `token` from the response, and use it to trigger a drift scan for your workspace:
-```bash
-# Replace YOUR_TOKEN with the JWT from the previous step
-curl -k -H "Authorization: Bearer YOUR_TOKEN" -X POST https://localhost:8443/api/v1/workspaces/aws-s3-test/scans
-```
+*Note: The `POST /scans` endpoint triggers a background scan and returns the raw JSON findings. If you want to view a pretty table format in the terminal, use the CLI instead (see below), or fetch the report manually via `GET /api/v1/scans/SCAN_ID/report?format=table`.*
 
 ---
 
@@ -88,6 +98,6 @@ curl -k -H "Authorization: Bearer YOUR_TOKEN" -X POST https://localhost:8443/api
 If you don't want to run the background server, you can use the CLI tool to perform instant, ad-hoc scans directly against a state file:
 
 ```bash
-./bin/tfdriftctl scan --state path/to/terraform.tfstate --provider aws --region us-east-1
+./bin/tfdriftctl.exe scan --state path/to/terraform.tfstate --provider aws --region us-east-1
 ```
 *The CLI will output a table showing exactly what resources are missing, extra, or modified in the live cloud environment.*
