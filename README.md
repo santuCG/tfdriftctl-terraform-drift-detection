@@ -1,6 +1,8 @@
-# tfdriftctl - Terraform Drift Detection
+# tfdriftctl - Multi-Cloud Terraform Drift Detection
 
-`tfdriftctl` is a tool that continuously compares your Terraform state files against live cloud infrastructure (AWS) to detect configuration drift—without needing to run `terraform plan` or `terraform apply`. 
+`tfdriftctl` is a tool that continuously compares your Terraform state files against live cloud infrastructure (AWS, Azure) to detect configuration drift—without needing to run `terraform plan` or `terraform apply`.
+
+It supports local state files, remote state files (S3, HTTP, Terraform Cloud), and advanced authentication like AWS OIDC Web Identity.
 
 It comes with a REST API, JWT Authentication, and TLS encryption out-of-the-box.
 
@@ -13,12 +15,13 @@ Terraform State -> State Reader -> Extractor -> Expected Model
 Cloud APIs      -> Cloud Fetcher -> Extractor -> Actual Model  -> Drift Engine -> Report
 ```
 
-`tfdriftctl` reads your "Expected Model" directly from your Terraform state file and pulls your "Actual Model" live from AWS Cloud APIs. The Drift Engine then compares the two models attribute-by-attribute to find any unmanaged discrepancies, alerting you to security and configuration risks before your next `terraform apply`!
+`tfdriftctl` reads your "Expected Model" from your Terraform state (Local, S3, TFC) and pulls your "Actual Model" live from Cloud APIs. The Drift Engine then compares the two models attribute-by-attribute to find any unmanaged discrepancies, alerting you to security and configuration risks before your next `terraform apply`!
+
 ---
 
 ## Prerequisites
 - **Go** (1.20+)
-- **AWS CLI** configured with your credentials (`aws configure`)
+- **Cloud Credentials** (e.g., `aws configure`, Azure CLI, or configure OIDC in `tfdriftctl.yaml`)
 
 ---
 
@@ -42,15 +45,15 @@ go run "$goRoot\src\crypto\tls\generate_cert.go" --host localhost
 
 This will generate `cert.pem` and `key.pem` in your project root.
 
-### 2. Configure Secrets and Workspaces
-Open `configs/tfdriftctl.yaml` and update the security credentials:
-- Change `<CHANGE_ME_JWT_SECRET>` to a secure random string.
-- Change `<CHANGE_ME_ADMIN_PASSWORD>` to your preferred login password.
+### 2. Configure Secrets, State Backends, and Auth
+Copy `configs/tfdriftctl.example.yaml` to `configs/tfdriftctl.yaml` and update the security credentials (`jwt_secret`, `admin_password`).
 
-Make sure your `workspaces` block points to a valid local `terraform.tfstate` file:
+Configure your `workspaces` to point to your state files and cloud environments.
+
+**Local State Example:**
 ```yaml
 workspaces:
-  - name: aws-s3-test
+  - name: aws-local
     provider: aws
     state:
       backend: local
@@ -59,8 +62,51 @@ workspaces:
       - us-east-1
 ```
 
+**Remote S3 State + AWS OIDC Auth Example:**
+You can bypass `aws configure` by using AWS OIDC Web Identity Token Auth!
+```yaml
+workspaces:
+  - name: aws-s3-prod
+    provider: aws
+    auth:
+      role_arn: "arn:aws:iam::123456789012:role/MyRole"
+      web_identity_token_file: "/path/to/token/file"
+    state:
+      backend: s3
+      bucket: my-tf-state
+      key: prod.tfstate
+      region: us-east-1
+    regions:
+      - us-east-1
+```
+
+**Terraform Cloud (TFC) State Example:**
+```yaml
+workspaces:
+  - name: aws-tfc
+    provider: aws
+    state:
+      backend: tfc
+      workspace_id: "ws-YOUR_WORKSPACE_ID"
+      token: "YOUR_TFC_API_TOKEN"
+    regions:
+      - us-east-1
+```
+
+**Azure Provider Example:**
+```yaml
+workspaces:
+  - name: azure-dev
+    provider: azure
+    state:
+      backend: local
+      path: azure.tfstate
+    regions:
+      - eastus
+```
+
 ### 3. Build the Application
-Compile the server and the CLI tools (if you are on Windows, append `.exe` to the output files as shown below so Windows knows they are runnable programs):
+Compile the server and the CLI tools (append `.exe` on Windows):
 
 ```bash
 # Build the API Server
@@ -89,8 +135,6 @@ curl -k -H "Authorization: Bearer YOUR_TOKEN" https://localhost:8443/api/v1/work
 curl -k -H "Authorization: Bearer YOUR_TOKEN" -X POST https://localhost:8443/api/v1/workspaces/YOUR_WORKSPACE_ID/scans
 ```
 
-*Note: The `POST /scans` endpoint triggers a background scan and returns the raw JSON findings. If you want to view a pretty table format in the terminal, use the CLI instead (see below), or fetch the report manually via `GET /api/v1/scans/SCAN_ID/report?format=table`.*
-
 ---
 
 ## CLI Usage (Ad-hoc Scans)
@@ -100,4 +144,8 @@ If you don't want to run the background server, you can use the CLI tool to perf
 ```bash
 ./bin/tfdriftctl.exe scan --state path/to/terraform.tfstate --provider aws --region us-east-1
 ```
-*The CLI will output a table showing exactly what resources are missing, extra, or modified in the live cloud environment.*
+
+For S3 backends, you can use:
+```bash
+./bin/tfdriftctl.exe scan --state-bucket my-bucket --state s3/terraform.tfstate --provider aws --region us-east-1
+```
