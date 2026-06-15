@@ -168,3 +168,13 @@ Because cloud providers have hundreds of resources, we rely on the open-source c
 4. Register the type in `aws.go` under `SupportedTypes()`.
 
 Pull Requests are highly encouraged!
+
+---
+
+## 🔮 Future Enhancements / Roadmap
+
+We are actively working on expanding `tfdriftctl`! Here are the major features currently in the pipeline:
+
+1. **CIS Benchmark Mapping**: Automatically mapping detected drift to specific compliance frameworks (like the CIS AWS Foundations Benchmark). For example, if `tfdriftctl` detects an unmanaged Security Group with port 22 open, it will flag it as a critical CIS violation.
+2. **Azure SDK Integration**: Full production support for Azure resources (Virtual Networks, VMs, Storage Accounts) using the official Azure SDK for Go.
+3. **Automated Pull Requests**: A feature to automatically generate and open a GitHub Pull Request that fixes the drifted Terraform HCL source code.
