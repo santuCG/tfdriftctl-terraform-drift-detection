@@ -1,0 +1,35 @@
+name: Daily Drift Scan
+
+on:
+  schedule:
+    # Run every day at 8:00 AM UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Allow manual triggers
+
+permissions:
+  id-token: write # Required for AWS OIDC authentication
+  contents: read
+
+jobs:
+  scan:
+    name: Run Terraform Drift Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/MyGitHubActionsRole
+          aws-region: us-east-1
+
+      - name: Detect Infrastructure Drift
+        # Users would normally point this to your repo: uses: santuCG/tfdriftctl-terraform-drift-detection@main
+        # But since we are inside the repo, we use the local action.yml
+        uses: ./
+        with:
+          provider: aws
+          region: us-east-1
+          state-bucket: my-terraform-state-bucket
+          state-path: prod/terraform.tfstate
