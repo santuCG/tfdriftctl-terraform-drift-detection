@@ -39,6 +39,7 @@ func writeTable(w io.Writer, report *model.DriftReport) error {
 	fmt.Fprintf(tw, "Attribute Changes:\t%d\n", report.Summary.AttributeChanges)
 	fmt.Fprintf(tw, "Tag Changes:\t%d\n", report.Summary.TagChanges)
 	fmt.Fprintf(tw, "Total Findings:\t%d\n", report.Summary.TotalFindings)
+	fmt.Fprintf(tw, "Total Risk Score:\t%d\n", report.Summary.TotalRiskScore)
 	fmt.Fprintln(tw, "")
 
 	if len(report.Findings) == 0 {
@@ -47,10 +48,10 @@ func writeTable(w io.Writer, report *model.DriftReport) error {
 	}
 
 	fmt.Fprintln(tw, "FINDINGS")
-	fmt.Fprintln(tw, "KIND\tSEVERITY\tRESOURCE\tFIELD\tEXPECTED\tACTUAL")
+	fmt.Fprintln(tw, "KIND\tSEVERITY\tRISK\tRESOURCE\tFIELD\tEXPECTED\tACTUAL\tREMEDIATION")
 	for _, f := range report.Findings {
-		fmt.Fprintf(tw, "%s\t%s\t%s (%s)\t%s\t%v\t%v\n",
-			f.Kind, f.Severity, f.ResourceName, f.ResourceType, f.Field, f.Expected, f.Actual)
+		fmt.Fprintf(tw, "%s\t%s\t%d\t%s (%s)\t%s\t%v\t%v\t%s\n",
+			f.Kind, f.Severity, f.RiskScore, f.ResourceName, f.ResourceType, f.Field, f.Expected, f.Actual, f.Remediation)
 	}
 	return tw.Flush()
 }

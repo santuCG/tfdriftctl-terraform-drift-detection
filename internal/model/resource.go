@@ -43,6 +43,8 @@ type DriftFinding struct {
 	Expected     any       `json:"expected,omitempty"`
 	Actual       any       `json:"actual,omitempty"`
 	Severity     string    `json:"severity"`
+	RiskScore    int       `json:"risk_score"`
+	Remediation  string    `json:"remediation,omitempty"`
 }
 
 // DriftSummary aggregates finding counts.
@@ -53,6 +55,7 @@ type DriftSummary struct {
 	AttributeChanges int `json:"attribute_changes"`
 	TagChanges       int `json:"tag_changes"`
 	TotalFindings    int `json:"total_findings"`
+	TotalRiskScore   int `json:"total_risk_score"`
 }
 
 // DriftReport is the output of a drift scan.
