@@ -8,11 +8,24 @@ It comes with a REST API, JWT Authentication, and TLS encryption out-of-the-box.
 
 ## How It Works (Architecture)
 
-```text
-Terraform State -> State Reader -> Extractor -> Expected Model
-                                                        |
-                                                        v
-Cloud APIs      -> Cloud Fetcher -> Extractor -> Actual Model  -> Drift Engine -> Report
+```mermaid
+flowchart LR
+    subgraph Expected [Expected Infrastructure]
+        direction TB
+        State[(Terraform State\nLocal / S3 / TFC)] --> Reader[State Reader]
+        Reader --> EModel[Expected Model]
+    end
+
+    subgraph Actual [Actual Infrastructure]
+        direction TB
+        Cloud((Cloud APIs\nAWS / Azure)) --> Fetcher[Cloud Fetcher]
+        Fetcher --> AModel[Actual Model]
+    end
+
+    EModel --> Engine{Drift Engine}
+    AModel --> Engine
+    
+    Engine -->|Detects Missing, Extra, Changed\nCalculates Risk Scores| Report[/Drift Report JSON/]
 ```
 
 `tfdriftctl` reads your "Expected Model" from your Terraform state (Local, S3, TFC) and pulls your "Actual Model" live from Cloud APIs. The Drift Engine then compares the two models attribute-by-attribute to find any unmanaged discrepancies, alerting you to security and configuration risks before your next `terraform apply`!
