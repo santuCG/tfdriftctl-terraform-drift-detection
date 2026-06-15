@@ -107,7 +107,11 @@ go run $(go env GOROOT)/src/crypto/tls/generate_cert.go --host localhost
 ```
 
 **2. Configure Workspaces and Security:**
-Copy `configs/tfdriftctl.example.yaml` to `configs/tfdriftctl.yaml`. Update your `jwt_secret` and `admin_password`. Then, define your workspaces.
+First, copy the example configuration file:
+```bash
+cp configs/tfdriftctl.example.yaml configs/tfdriftctl.yaml
+```
+Then, edit `configs/tfdriftctl.yaml` to update your `jwt_secret` and `admin_password`, and define your workspaces.
 
 *Example Workspace with S3 State + AWS OIDC Auth:*
 ```yaml
