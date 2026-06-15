@@ -36,43 +36,30 @@ flowchart LR
 3. **Risk Scoring & Automated Remediation:** Unlike Terraform which just shows a diff, `tfdriftctl` calculates a **Risk Score (0-100)** for every drifted resource (e.g., drifting a Security Group is high risk) and provides exact CLI commands to fix the drift immediately.
 
 ### Sample Drift Report
-When `tfdriftctl` detects changes, it outputs a detailed report including the Risk Score and Automated Remediation suggestions:
+When `tfdriftctl` detects changes, it outputs a detailed report including the Risk Score and Automated Remediation suggestions. Here is an example of what the CLI table output looks like:
 
-```json
-{
-  "summary": {
-    "total_resources": 45,
-    "missing_in_cloud": 1,
-    "extra_in_cloud": 0,
-    "attribute_changes": 1,
-    "tag_changes": 0,
-    "total_findings": 2,
-    "total_risk_score": 60
-  },
-  "findings": [
-    {
-      "kind": "missing_in_cloud",
-      "resource_id": "aws/aws_instance/i-0abcd1234efgh5678",
-      "resource_type": "aws_instance",
-      "resource_name": "web_server",
-      "severity": "critical",
-      "risk_score": 40,
-      "remediation": "Run 'terraform apply -target=\"aws_instance.web_server\"' to recreate the missing resource."
-    },
-    {
-      "kind": "attribute_changed",
-      "resource_id": "aws/aws_security_group/sg-0123456789abcdef0",
-      "resource_type": "aws_security_group",
-      "resource_name": "allow_web",
-      "field": "description",
-      "expected": "Managed by Terraform",
-      "actual": "Temporarily changed for testing",
-      "severity": "warning",
-      "risk_score": 20,
-      "remediation": "Run 'terraform apply -target=\"aws_security_group.allow_web\"' to revert the description attribute drift."
-    }
-  ]
-}
+```text
+Scan ID:    574531d4-77a9-40c0-b15a-4b5260a1e38b
+Workspace:  adhoc
+Status:     completed
+Started:    2026-06-15 09:21:21 UTC
+Completed:  2026-06-15 09:21:22 UTC
+
+SUMMARY
+Total Resources:    2
+Missing in Cloud:   1
+Extra in Cloud:     0
+Attribute Changes:  2
+Tag Changes:        1
+Total Findings:     4
+Total Risk Score:   85
+
+FINDINGS
+KIND               SEVERITY  RISK  RESOURCE                                                   FIELD          EXPECTED                               ACTUAL                              REMEDIATION
+attribute_changed  warning   20    tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket)             force_destroy  false                                  <nil>                               Run 'terraform apply -target="aws_s3_bucket.tfdriftctl-test-bucket-demo-s3"' to revert the force_destroy attribute drift.
+attribute_changed  warning   20    tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket)             versioning     [map[enabled:false mfa_delete:false]]  map[enabled:true mfa_delete:false]  Run 'terraform apply -target="aws_s3_bucket.tfdriftctl-test-bucket-demo-s3"' to revert the versioning attribute drift.
+tags_changed       info      5     tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket)             tags.demo      <nil>                                  tfdrift                             Run 'terraform apply -target="aws_s3_bucket.tfdriftctl-test-bucket-demo-s3"' to fix tag drift.
+missing_in_cloud   critical  40    tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket_versioning)                 <nil>                                  <nil>                               Run 'terraform apply -target="aws_s3_bucket_versioning.tfdriftctl-test-bucket-demo-s3"' to recreate the missing resource.
 ```
 
 ---
@@ -85,43 +72,45 @@ When `tfdriftctl` detects changes, it outputs a detailed report including the Ri
 
 ## 🚀 Quick Start Guide
 
-Follow these steps in order to run `tfdriftctl` on your local machine.
+You can use `tfdriftctl` in two ways: as a simple CLI utility for instant ad-hoc scans, or as a background API server for continuous scheduled monitoring. 
 
-### 1. Generate TLS Certificates
-The API server runs securely over HTTPS. Generate a local self-signed certificate by running the following in your terminal:
+### Pathway A: CLI Utility (Easiest)
 
-**On Mac / Linux:**
+If you just want to run an instant scan against a local or remote state file, use the CLI.
+
+**1. Build the CLI:**
+Compile the CLI tool (append `.exe` on Windows):
+```bash
+go build -o bin/tfdriftctl.exe ./cmd/tfdriftctl
+```
+
+**2. Run a Scan:**
+Run the tool against a local state file:
+```bash
+./bin/tfdriftctl.exe scan --state path/to/terraform.tfstate --provider aws --region us-east-1
+```
+
+Or run against an S3 remote backend:
+```bash
+./bin/tfdriftctl.exe scan --state-bucket my-bucket --state s3/terraform.tfstate --provider aws --region us-east-1
+```
+
+---
+
+### Pathway B: Continuous API Server
+
+If you want to run `tfdriftctl` continuously on a server, schedule cron scans, and interact with it via REST API, follow these steps.
+
+**1. Generate TLS Certificates:**
+The API server runs securely over HTTPS. Generate a local self-signed certificate:
 ```bash
 go run $(go env GOROOT)/src/crypto/tls/generate_cert.go --host localhost
 ```
 
-**On Windows (PowerShell):**
-```powershell
-$goRoot = go env GOROOT
-go run "$goRoot\src\crypto\tls\generate_cert.go" --host localhost
-```
+**2. Configure Workspaces and Security:**
+Copy `configs/tfdriftctl.example.yaml` to `configs/tfdriftctl.yaml`. Update your `jwt_secret` and `admin_password`. Then, define your workspaces.
 
-This will generate `cert.pem` and `key.pem` in your project root.
-
-### 2. Configure Secrets, State Backends, and Auth
-Copy `configs/tfdriftctl.example.yaml` to `configs/tfdriftctl.yaml` and update the security credentials (`jwt_secret`, `admin_password`).
-
-Configure your `workspaces` to point to your state files and cloud environments.
-
-**Local State Example:**
-```yaml
-workspaces:
-  - name: aws-local
-    provider: aws
-    state:
-      backend: local
-      path: path/to/your/terraform.tfstate
-    regions:
-      - us-east-1
-```
-
-**Remote S3 State + AWS OIDC Auth Example:**
-You can bypass `aws configure` by using AWS OIDC Web Identity Token Auth!
+*Example Workspace with S3 State + AWS OIDC Auth:*
 ```yaml
 workspaces:
   - name: aws-s3-prod
@@ -138,72 +127,20 @@ workspaces:
       - us-east-1
 ```
 
-**Terraform Cloud (TFC) State Example:**
-```yaml
-workspaces:
-  - name: aws-tfc
-    provider: aws
-    state:
-      backend: tfc
-      workspace_id: "ws-YOUR_WORKSPACE_ID"
-      token: "YOUR_TFC_API_TOKEN"
-    regions:
-      - us-east-1
-```
-
-**Azure Provider Example:**
-```yaml
-workspaces:
-  - name: azure-dev
-    provider: azure
-    state:
-      backend: local
-      path: azure.tfstate
-    regions:
-      - eastus
-```
-
-### 3. Build the Application
-Compile the server and the CLI tools (append `.exe` on Windows):
-
+**3. Build and Start the Server:**
 ```bash
-# Build the API Server
 go build -o bin/drift-server.exe ./cmd/drift-server
-
-# Build the CLI
-go build -o bin/tfdriftctl.exe ./cmd/tfdriftctl
-```
-
-### 4. Start the Server
-Run the API server in your terminal:
-```bash
 ./bin/drift-server.exe -config configs/tfdriftctl.yaml
 ```
 
-### 5. Authenticate & Trigger a Scan
-In a new terminal window, authenticate with your password to receive a JWT token:
+**4. Authenticate & Trigger a Scan via API:**
 ```bash
-# 1. Login to get your token
+# Login to get your token
 curl -k -X POST https://localhost:8443/api/v1/login -d '{"password": "YOUR_ADMIN_PASSWORD"}'
 
-# 2. List your workspaces to get your internal Workspace ID
+# List your workspaces to get the Workspace ID
 curl -k -H "Authorization: Bearer YOUR_TOKEN" https://localhost:8443/api/v1/workspaces
 
-# 3. Trigger a scan using the Workspace ID from the previous step
+# Trigger a background scan
 curl -k -H "Authorization: Bearer YOUR_TOKEN" -X POST https://localhost:8443/api/v1/workspaces/YOUR_WORKSPACE_ID/scans
-```
-
----
-
-## CLI Usage (Ad-hoc Scans)
-
-If you don't want to run the background server, you can use the CLI tool to perform instant, ad-hoc scans directly against a state file:
-
-```bash
-./bin/tfdriftctl.exe scan --state path/to/terraform.tfstate --provider aws --region us-east-1
-```
-
-For S3 backends, you can use:
-```bash
-./bin/tfdriftctl.exe scan --state-bucket my-bucket --state s3/terraform.tfstate --provider aws --region us-east-1
 ```
