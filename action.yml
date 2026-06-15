@@ -1,0 +1,44 @@
+name: 'Terraform Drift Detection'
+description: 'Detects configuration drift between your Terraform state and live cloud infrastructure.'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  provider:
+    description: 'Cloud provider (e.g., aws, azure)'
+    required: true
+    default: 'aws'
+  region:
+    description: 'Cloud region to scan'
+    required: false
+    default: 'us-east-1'
+  state-bucket:
+    description: 'S3 bucket containing the state file (leave blank for local state or TFC)'
+    required: false
+  state-path:
+    description: 'Path to local state, or S3 key, or workspace ID for TFC'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.20'
+    
+    - name: Build tfdriftctl
+      shell: bash
+      run: go build -o /usr/local/bin/tfdriftctl ./cmd/tfdriftctl
+      working-directory: ${{ github.action_path }}
+    
+    - name: Run Drift Scan (S3 State)
+      if: inputs.state-bucket != ''
+      shell: bash
+      run: tfdriftctl scan --state-bucket ${{ inputs.state-bucket }} --state ${{ inputs.state-path }} --provider ${{ inputs.provider }} --region ${{ inputs.region }}
+      
+    - name: Run Drift Scan (Local or TFC State)
+      if: inputs.state-bucket == ''
+      shell: bash
+      run: tfdriftctl scan --state ${{ inputs.state-path }} --provider ${{ inputs.provider }} --region ${{ inputs.region }}
