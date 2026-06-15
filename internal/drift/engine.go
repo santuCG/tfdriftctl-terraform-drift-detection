@@ -47,13 +47,15 @@ func (e *Engine) Compare(expected, actual []model.Resource) []model.DriftFinding
 		expectedIndex[exp.ID] = exp
 		act, ok := actualIndex[exp.ID]
 		if !ok {
-			findings = append(findings, model.DriftFinding{
+			f := model.DriftFinding{
 				Kind:         model.DriftMissingInCloud,
 				ResourceID:   exp.ID,
 				ResourceType: exp.Type,
 				ResourceName: exp.Name,
 				Severity:     severityForMissing(exp),
-			})
+			}
+			enrichFinding(&f)
+			findings = append(findings, f)
 			continue
 		}
 		findings = append(findings, e.diffAttributes(exp, act)...)
@@ -62,13 +64,15 @@ func (e *Engine) Compare(expected, actual []model.Resource) []model.DriftFinding
 
 	for _, act := range actual {
 		if _, ok := expectedIndex[act.ID]; !ok {
-			findings = append(findings, model.DriftFinding{
+			f := model.DriftFinding{
 				Kind:         model.DriftExtraInCloud,
 				ResourceID:   act.ID,
 				ResourceType: act.Type,
 				ResourceName: act.Name,
 				Severity:     model.SeverityWarning,
-			})
+			}
+			enrichFinding(&f)
+			findings = append(findings, f)
 		}
 	}
 
@@ -94,7 +98,7 @@ func (e *Engine) diffAttributes(exp, act model.Resource) []model.DriftFinding {
 		if valuesEqual(ev, av) {
 			continue
 		}
-		findings = append(findings, model.DriftFinding{
+		f := model.DriftFinding{
 			Kind:         model.DriftAttributeChange,
 			ResourceID:   exp.ID,
 			ResourceType: exp.Type,
@@ -103,7 +107,9 @@ func (e *Engine) diffAttributes(exp, act model.Resource) []model.DriftFinding {
 			Expected:     ev,
 			Actual:       av,
 			Severity:     model.SeverityWarning,
-		})
+		}
+		enrichFinding(&f)
+		findings = append(findings, f)
 	}
 	return findings
 }
@@ -128,8 +134,9 @@ func (e *Engine) diffTags(exp, act model.Resource) []model.DriftFinding {
 		if eok && aok && ev == av {
 			continue
 		}
+		var f model.DriftFinding
 		if !eok && aok {
-			findings = append(findings, model.DriftFinding{
+			f = model.DriftFinding{
 				Kind:         model.DriftTagsChanged,
 				ResourceID:   exp.ID,
 				ResourceType: exp.Type,
@@ -138,11 +145,13 @@ func (e *Engine) diffTags(exp, act model.Resource) []model.DriftFinding {
 				Expected:     nil,
 				Actual:       av,
 				Severity:     model.SeverityInfo,
-			})
+			}
+			enrichFinding(&f)
+			findings = append(findings, f)
 			continue
 		}
 		if eok && !aok {
-			findings = append(findings, model.DriftFinding{
+			f = model.DriftFinding{
 				Kind:         model.DriftTagsChanged,
 				ResourceID:   exp.ID,
 				ResourceType: exp.Type,
@@ -151,11 +160,13 @@ func (e *Engine) diffTags(exp, act model.Resource) []model.DriftFinding {
 				Expected:     ev,
 				Actual:       nil,
 				Severity:     model.SeverityInfo,
-			})
+			}
+			enrichFinding(&f)
+			findings = append(findings, f)
 			continue
 		}
 		if ev != av {
-			findings = append(findings, model.DriftFinding{
+			f = model.DriftFinding{
 				Kind:         model.DriftTagsChanged,
 				ResourceID:   exp.ID,
 				ResourceType: exp.Type,
@@ -164,7 +175,9 @@ func (e *Engine) diffTags(exp, act model.Resource) []model.DriftFinding {
 				Expected:     ev,
 				Actual:       av,
 				Severity:     model.SeverityInfo,
-			})
+			}
+			enrichFinding(&f)
+			findings = append(findings, f)
 		}
 	}
 	return findings
@@ -238,6 +251,7 @@ func BuildSummary(expectedCount int, findings []model.DriftFinding) model.DriftS
 		TotalFindings:  len(findings),
 	}
 	for _, f := range findings {
+		s.TotalRiskScore += f.RiskScore
 		switch f.Kind {
 		case model.DriftMissingInCloud:
 			s.MissingInCloud++
@@ -250,4 +264,34 @@ func BuildSummary(expectedCount int, findings []model.DriftFinding) model.DriftS
 		}
 	}
 	return s
+}
+
+func enrichFinding(f *model.DriftFinding) {
+	// Baseline risk by drift kind
+	switch f.Kind {
+	case model.DriftMissingInCloud:
+		f.RiskScore = 40
+		f.Remediation = fmt.Sprintf("Run 'terraform apply -target=\"%s.%s\"' to recreate the missing resource.", f.ResourceType, f.ResourceName)
+	case model.DriftExtraInCloud:
+		f.RiskScore = 30
+		f.Remediation = fmt.Sprintf("Resource is unmanaged. Import it: 'terraform import %s.%s %s' or manually delete it from the cloud.", f.ResourceType, f.ResourceName, f.ResourceID)
+	case model.DriftAttributeChange:
+		f.RiskScore = 20
+		f.Remediation = fmt.Sprintf("Run 'terraform apply -target=\"%s.%s\"' to revert the %s attribute drift.", f.ResourceType, f.ResourceName, f.Field)
+	case model.DriftTagsChanged:
+		f.RiskScore = 5
+		f.Remediation = fmt.Sprintf("Run 'terraform apply -target=\"%s.%s\"' to fix tag drift.", f.ResourceType, f.ResourceName)
+	}
+
+	// Bump risk for security-sensitive resources
+	if strings.Contains(f.ResourceType, "security_group") || strings.Contains(f.ResourceType, "iam") {
+		f.RiskScore += 30
+	} else if strings.Contains(f.ResourceType, "vpc") || strings.Contains(f.ResourceType, "subnet") {
+		f.RiskScore += 20
+	}
+
+	// Cap at 100
+	if f.RiskScore > 100 {
+		f.RiskScore = 100
+	}
 }
