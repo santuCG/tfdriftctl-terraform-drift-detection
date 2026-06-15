@@ -17,6 +17,51 @@ Cloud APIs      -> Cloud Fetcher -> Extractor -> Actual Model  -> Drift Engine -
 
 `tfdriftctl` reads your "Expected Model" from your Terraform state (Local, S3, TFC) and pulls your "Actual Model" live from Cloud APIs. The Drift Engine then compares the two models attribute-by-attribute to find any unmanaged discrepancies, alerting you to security and configuration risks before your next `terraform apply`!
 
+### Why use `tfdriftctl` instead of `terraform plan`?
+1. **Speed & Scale:** `terraform plan` re-evaluates your entire HCL codebase, downloads provider plugins, and processes data blocks. `tfdriftctl` purely compares the raw JSON state to the Cloud API, taking milliseconds instead of minutes.
+2. **Continuous Compliance:** You can run `tfdriftctl` on a cron schedule (or via the REST API) continuously without needing access to your actual Terraform `.tf` source code.
+3. **Risk Scoring & Automated Remediation:** Unlike Terraform which just shows a diff, `tfdriftctl` calculates a **Risk Score (0-100)** for every drifted resource (e.g., drifting a Security Group is high risk) and provides exact CLI commands to fix the drift immediately.
+
+### Sample Drift Report
+When `tfdriftctl` detects changes, it outputs a detailed report including the Risk Score and Automated Remediation suggestions:
+
+```json
+{
+  "summary": {
+    "total_resources": 45,
+    "missing_in_cloud": 1,
+    "extra_in_cloud": 0,
+    "attribute_changes": 1,
+    "tag_changes": 0,
+    "total_findings": 2,
+    "total_risk_score": 60
+  },
+  "findings": [
+    {
+      "kind": "missing_in_cloud",
+      "resource_id": "aws/aws_instance/i-0abcd1234efgh5678",
+      "resource_type": "aws_instance",
+      "resource_name": "web_server",
+      "severity": "critical",
+      "risk_score": 40,
+      "remediation": "Run 'terraform apply -target=\"aws_instance.web_server\"' to recreate the missing resource."
+    },
+    {
+      "kind": "attribute_changed",
+      "resource_id": "aws/aws_security_group/sg-0123456789abcdef0",
+      "resource_type": "aws_security_group",
+      "resource_name": "allow_web",
+      "field": "description",
+      "expected": "Managed by Terraform",
+      "actual": "Temporarily changed for testing",
+      "severity": "warning",
+      "risk_score": 20,
+      "remediation": "Run 'terraform apply -target=\"aws_security_group.allow_web\"' to revert the description attribute drift."
+    }
+  ]
+}
+```
+
 ---
 
 ## Prerequisites
