@@ -40,26 +40,25 @@ When `tfdriftctl` detects changes, it outputs a detailed report including the Ri
 
 ```text
 Scan ID:    574531d4-77a9-40c0-b15a-4b5260a1e38b
-Workspace:  adhoc
+Workspace:  prod-aws-us-east-1
 Status:     completed
 Started:    2026-06-15 09:21:21 UTC
 Completed:  2026-06-15 09:21:22 UTC
 
 SUMMARY
-Total Resources:    2
+Total Resources:    120
 Missing in Cloud:   1
 Extra in Cloud:     0
-Attribute Changes:  2
+Attribute Changes:  1
 Tag Changes:        1
-Total Findings:     4
+Total Findings:     3
 Total Risk Score:   85
 
 FINDINGS
-KIND               SEVERITY  RISK  RESOURCE                                                   FIELD          EXPECTED                               ACTUAL                              REMEDIATION
-attribute_changed  warning   20    tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket)             force_destroy  false                                  <nil>                               Run 'terraform apply -target="aws_s3_bucket.tfdriftctl-test-bucket-demo-s3"' to revert the force_destroy attribute drift.
-attribute_changed  warning   20    tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket)             versioning     [map[enabled:false mfa_delete:false]]  map[enabled:true mfa_delete:false]  Run 'terraform apply -target="aws_s3_bucket.tfdriftctl-test-bucket-demo-s3"' to revert the versioning attribute drift.
-tags_changed       info      5     tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket)             tags.demo      <nil>                                  tfdrift                             Run 'terraform apply -target="aws_s3_bucket.tfdriftctl-test-bucket-demo-s3"' to fix tag drift.
-missing_in_cloud   critical  40    tfdriftctl-test-bucket-demo-s3 (aws_s3_bucket_versioning)                 <nil>                                  <nil>                               Run 'terraform apply -target="aws_s3_bucket_versioning.tfdriftctl-test-bucket-demo-s3"' to recreate the missing resource.
+KIND               SEVERITY  RISK  RESOURCE                                          FIELD          EXPECTED                      ACTUAL                        REMEDIATION
+attribute_changed  warning   20    allow_web_traffic (aws_security_group)            description    Managed by Terraform          Temporarily open for testing  Run 'terraform apply -target="aws_security_group.allow_web_traffic"' to revert drift.
+tags_changed       info      5     main_vpc (aws_vpc)                                tags.Env       production                    dev                           Run 'terraform apply -target="aws_vpc.main_vpc"' to fix tag drift.
+missing_in_cloud   critical  60    web_server_01 (aws_instance)                                     <nil>                         <nil>                         Run 'terraform apply -target="aws_instance.web_server_01"' to recreate.
 ```
 
 ---
@@ -144,3 +143,24 @@ curl -k -H "Authorization: Bearer YOUR_TOKEN" https://localhost:8443/api/v1/work
 # Trigger a background scan
 curl -k -H "Authorization: Bearer YOUR_TOKEN" -X POST https://localhost:8443/api/v1/workspaces/YOUR_WORKSPACE_ID/scans
 ```
+
+---
+
+## 🤝 Contributing New Resources
+
+`tfdriftctl` currently supports **5 foundational AWS resources**:
+- `aws_instance` (EC2)
+- `aws_s3_bucket`
+- `aws_vpc`
+- `aws_subnet`
+- `aws_security_group`
+
+Because cloud providers have hundreds of resources, we rely on the open-source community to expand coverage! 
+
+**How to add a new resource fetcher:**
+1. Navigate to `internal/providers/aws/`
+2. Create a new file (e.g., `fetch_rds.go`) using the [AWS SDK for Go v2](https://aws.github.io/aws-sdk-go-v2/docs/).
+3. Map the AWS API response to the generic `model.Resource` struct.
+4. Register the type in `aws.go` under `SupportedTypes()`.
+
+Pull Requests are highly encouraged!
