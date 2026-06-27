@@ -1,9 +1,6 @@
 name: Daily Drift Scan
 
 on:
-  schedule:
-    # Run every day at 8:00 AM UTC
-    - cron: '0 8 * * *'
   workflow_dispatch: # Allow manual triggers
 
 permissions:

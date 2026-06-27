@@ -45,12 +45,33 @@ func fetchInstances(ctx context.Context, client *ec2.Client, region string, expe
 				name = id
 			}
 
+			iamProfile := ""
+			if inst.IamInstanceProfile != nil {
+				iamProfile = aws.ToString(inst.IamInstanceProfile.Arn)
+			}
+
+			ebsOptimized := aws.ToBool(inst.EbsOptimized)
+			enclaveEnabled := inst.EnclaveOptions != nil && aws.ToBool(inst.EnclaveOptions.Enabled)
+
+			var rootDeviceName string
+			if inst.RootDeviceName != nil {
+				rootDeviceName = aws.ToString(inst.RootDeviceName)
+			}
+
 			attrs := map[string]any{
 				"instance_type":          string(inst.InstanceType),
 				"ami":                    aws.ToString(inst.ImageId),
 				"vpc_security_group_ids": sgIDs,
 				"subnet_id":              aws.ToString(inst.SubnetId),
 				"monitoring":             inst.Monitoring != nil && inst.Monitoring.State == ec2types.MonitoringStateEnabled,
+				"iam_instance_profile":   iamProfile,
+				"ebs_optimized":          ebsOptimized,
+				"enclave_options": map[string]any{
+					"enabled": enclaveEnabled,
+				},
+				"root_block_device": map[string]any{
+					"device_name": rootDeviceName,
+				},
 			}
 
 			resources = append(resources, baseResource("aws_instance", id, name, region, attrs, tags))

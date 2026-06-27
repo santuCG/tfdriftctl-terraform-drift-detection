@@ -43,7 +43,7 @@ func main() {
 		}
 	}
 
-	scanner := scan.NewScanner(st)
+	scanner := scan.NewScanner(st, cfg.Alerting)
 	sched := scheduler.New(scanner, st)
 	if err := sched.LoadFromStore(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "load schedules: %v\n", err)
