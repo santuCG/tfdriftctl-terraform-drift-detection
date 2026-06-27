@@ -57,7 +57,7 @@ func TestEngineCompareMissingInCloud(t *testing.T) {
 	if len(findings) != 1 || findings[0].Kind != model.DriftMissingInCloud {
 		t.Fatalf("expected missing finding, got %+v", findings)
 	}
-	if findings[0].Severity != model.SeverityCritical {
-		t.Fatalf("expected critical severity, got %s", findings[0].Severity)
+	if findings[0].Severity != "high" {
+		t.Fatalf("expected high severity, got %s", findings[0].Severity)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/tfdriftctl/tfdriftctl/internal/config"
 	"github.com/tfdriftctl/tfdriftctl/internal/model"
 	"github.com/tfdriftctl/tfdriftctl/internal/store"
 )
@@ -24,7 +25,7 @@ func TestScannerRunSkipCloud(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scanner := NewScanner(st)
+	scanner := NewScanner(st, config.AlertingConfig{})
 	report, err := scanner.Run(context.Background(), Options{
 		WorkspaceName: "test",
 		Provider:      "aws",
