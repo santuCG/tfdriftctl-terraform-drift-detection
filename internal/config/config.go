@@ -13,6 +13,7 @@ import (
 type File struct {
 	Database   string            `yaml:"database"`
 	API        APIConfig         `yaml:"api"`
+	Alerting   AlertingConfig    `yaml:"alerting"`
 	Workspaces []model.Workspace `yaml:"workspaces"`
 }
 
@@ -23,6 +24,18 @@ type APIConfig struct {
 	TLSKey        string `yaml:"tls_key"`
 	JWTSecret     string `yaml:"jwt_secret"`
 	AdminPassword string `yaml:"admin_password"`
+}
+
+// AlertingConfig holds SMTP configuration for email alerts.
+type AlertingConfig struct {
+	Enabled          bool   `yaml:"enabled"`
+	SMTPHost         string `yaml:"smtp_host"`
+	SMTPPort         int    `yaml:"smtp_port"`
+	Username         string `yaml:"username"`
+	Password         string `yaml:"password"`
+	From             string `yaml:"from"`
+	To               string `yaml:"to"`
+	MinimumRiskScore int    `yaml:"minimum_risk_score"`
 }
 
 // Load reads configuration from a YAML file.

@@ -63,6 +63,44 @@ func fetchBuckets(ctx context.Context, client *s3.Client, region string, expecte
 			}
 		}
 
+		encOut, err := client.GetBucketEncryption(ctx, &s3.GetBucketEncryptionInput{
+			Bucket: aws.String(bucket),
+		})
+		if err == nil && encOut.ServerSideEncryptionConfiguration != nil && len(encOut.ServerSideEncryptionConfiguration.Rules) > 0 {
+			rule := encOut.ServerSideEncryptionConfiguration.Rules[0]
+			if rule.ApplyServerSideEncryptionByDefault != nil {
+				attrs["server_side_encryption_configuration"] = map[string]any{
+					"rule": map[string]any{
+						"apply_server_side_encryption_by_default": map[string]any{
+							"sse_algorithm": string(rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm),
+						},
+					},
+				}
+			}
+		}
+
+		logOut, err := client.GetBucketLogging(ctx, &s3.GetBucketLoggingInput{
+			Bucket: aws.String(bucket),
+		})
+		if err == nil && logOut.LoggingEnabled != nil {
+			attrs["logging"] = map[string]any{
+				"target_bucket": aws.ToString(logOut.LoggingEnabled.TargetBucket),
+				"target_prefix": aws.ToString(logOut.LoggingEnabled.TargetPrefix),
+			}
+		}
+
+		pabOut, err := client.GetPublicAccessBlock(ctx, &s3.GetPublicAccessBlockInput{
+			Bucket: aws.String(bucket),
+		})
+		if err == nil && pabOut.PublicAccessBlockConfiguration != nil {
+			attrs["public_access_block"] = map[string]any{
+				"block_public_acls":       pabOut.PublicAccessBlockConfiguration.BlockPublicAcls,
+				"block_public_policy":     pabOut.PublicAccessBlockConfiguration.BlockPublicPolicy,
+				"ignore_public_acls":      pabOut.PublicAccessBlockConfiguration.IgnorePublicAcls,
+				"restrict_public_buckets": pabOut.PublicAccessBlockConfiguration.RestrictPublicBuckets,
+			}
+		}
+
 		resources = append(resources, baseResource("aws_s3_bucket", bucket, bucket, bucketRegion, attrs, tags))
 	}
 	return resources, errs

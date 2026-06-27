@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/tfdriftctl/tfdriftctl/internal/alerting"
+	"github.com/tfdriftctl/tfdriftctl/internal/config"
 	"github.com/tfdriftctl/tfdriftctl/internal/drift"
 	"github.com/tfdriftctl/tfdriftctl/internal/model"
 	"github.com/tfdriftctl/tfdriftctl/internal/providers"
@@ -20,6 +22,7 @@ type Scanner struct {
 	Extractor   *state.Extractor
 	Providers   *providers.Registry
 	Store       store.Store
+	Alerting    config.AlertingConfig
 }
 
 // Options configures a single scan run.
@@ -34,11 +37,12 @@ type Options struct {
 	SkipCloud     bool // for testing with state-only
 }
 
-func NewScanner(st store.Store) *Scanner {
+func NewScanner(st store.Store, alertCfg config.AlertingConfig) *Scanner {
 	return &Scanner{
 		StateReader: state.NewReader(),
 		Providers:   providers.DefaultRegistry(),
 		Store:       st,
+		Alerting:    alertCfg,
 	}
 }
 
@@ -105,6 +109,9 @@ func (s *Scanner) Run(ctx context.Context, opts Options) (*model.DriftReport, er
 	if err := s.Store.SaveScan(ctx, report); err != nil {
 		return nil, fmt.Errorf("save completed scan: %w", err)
 	}
+
+	// Trigger Email Alerting if threshold is met
+	alerting.SendDriftAlert(report, s.Alerting)
 
 	return report, nil
 }

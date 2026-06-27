@@ -87,7 +87,7 @@ func newScanCmd(cfgFile *string) *cobra.Command {
 				}
 			}
 
-			scanner := scan.NewScanner(st)
+			scanner := scan.NewScanner(st, config.AlertingConfig{})
 			opts := scan.Options{Compare: model.CompareConfig{}, Regions: regions}
 
 			if workspace != "" {

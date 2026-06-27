@@ -267,27 +267,49 @@ func BuildSummary(expectedCount int, findings []model.DriftFinding) model.DriftS
 }
 
 func enrichFinding(f *model.DriftFinding) {
-	// Baseline risk by drift kind
+	// Genuine Risk Matrix based on Resource Criticality and Drift Impact
+
+	// 1. Determine Resource Criticality
+	criticality := 10 // default low
+	isNetworkOrSecurity := strings.Contains(f.ResourceType, "security_group") || strings.Contains(f.ResourceType, "iam") || strings.Contains(f.ResourceType, "vpc") || strings.Contains(f.ResourceType, "subnet")
+	isDataOrCompute := strings.Contains(f.ResourceType, "s3_bucket") || strings.Contains(f.ResourceType, "instance") || strings.Contains(f.ResourceType, "db")
+
+	if isNetworkOrSecurity {
+		criticality = 40
+	} else if isDataOrCompute {
+		criticality = 25
+	}
+
+	// 2. Determine Drift Impact
+	var impact int
 	switch f.Kind {
 	case model.DriftMissingInCloud:
-		f.RiskScore = 40
+		impact = 50 // High availability impact
 		f.Remediation = fmt.Sprintf("Run 'terraform apply -target=\"%s.%s\"' to recreate the missing resource.", f.ResourceType, f.ResourceName)
 	case model.DriftExtraInCloud:
-		f.RiskScore = 30
+		impact = 40 // High confidentiality/integrity impact for rogue resources
 		f.Remediation = fmt.Sprintf("Resource is unmanaged. Import it: 'terraform import %s.%s %s' or manually delete it from the cloud.", f.ResourceType, f.ResourceName, f.ResourceID)
 	case model.DriftAttributeChange:
-		f.RiskScore = 20
+		impact = 30 // Medium impact
 		f.Remediation = fmt.Sprintf("Run 'terraform apply -target=\"%s.%s\"' to revert the %s attribute drift.", f.ResourceType, f.ResourceName, f.Field)
 	case model.DriftTagsChanged:
-		f.RiskScore = 5
+		impact = 5 // Low impact
 		f.Remediation = fmt.Sprintf("Run 'terraform apply -target=\"%s.%s\"' to fix tag drift.", f.ResourceType, f.ResourceName)
 	}
 
-	// Bump risk for security-sensitive resources
-	if strings.Contains(f.ResourceType, "security_group") || strings.Contains(f.ResourceType, "iam") {
-		f.RiskScore += 30
-	} else if strings.Contains(f.ResourceType, "vpc") || strings.Contains(f.ResourceType, "subnet") {
-		f.RiskScore += 20
+	// 3. Calculate Base Score
+	f.RiskScore = criticality + impact
+
+	// 4. Map to Severity Levels
+	switch {
+	case f.RiskScore >= 90:
+		f.Severity = model.SeverityCritical
+	case f.RiskScore >= 70:
+		f.Severity = "high"
+	case f.RiskScore >= 40:
+		f.Severity = model.SeverityWarning
+	default:
+		f.Severity = model.SeverityInfo
 	}
 
 	// Cap at 100
