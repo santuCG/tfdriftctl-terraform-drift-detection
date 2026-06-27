@@ -128,6 +128,16 @@ workspaces:
       region: us-east-1
     regions:
       - us-east-1
+
+alerting:
+  enabled: true
+  smtp_host: "smtp.sendgrid.net"
+  smtp_port: 587
+  username: "apikey"
+  password: "YOUR_SENDGRID_PASSWORD"
+  from: "drift-bot@yourcompany.com"
+  to: "security-team@yourcompany.com"
+  minimum_risk_score: 70
 ```
 
 **3. Build and Start the Server:**
