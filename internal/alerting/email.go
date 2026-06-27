@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
-	"text/template"
+	"html/template"
 
 	"github.com/tfdriftctl/tfdriftctl/internal/config"
 	"github.com/tfdriftctl/tfdriftctl/internal/model"
 )
 
-const emailTemplate = `Subject: [tfdriftctl Alert] High Risk Drift Detected in {{.Workspace}}
-To: {{.To}}
-From: {{.From}}
-MIME-version: 1.0;
-Content-Type: text/html; charset="UTF-8";
+const emailHeadersTmpl = "Subject: [tfdriftctl Alert] High Risk Drift Detected in %s\r\n" +
+	"To: %s\r\n" +
+	"From: %s\r\n" +
+	"MIME-version: 1.0;\r\n" +
+	"Content-Type: text/html; charset=\"UTF-8\";\r\n\r\n"
 
-<html>
+const emailHTML = `<html>
 <body>
 	<h2>tfdriftctl Alert: High Risk Drift</h2>
 	<p>A drift scan has completed with a Total Risk Score of <strong>{{.Report.Summary.TotalRiskScore}}</strong>.</p>
@@ -49,7 +49,9 @@ func SendDriftAlert(report *model.DriftReport, cfg config.AlertingConfig) {
 	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.SMTPHost)
 	addr := fmt.Sprintf("%s:%d", cfg.SMTPHost, cfg.SMTPPort)
 
-	tmpl, err := template.New("email").Parse(emailTemplate)
+	headers := fmt.Sprintf(emailHeadersTmpl, report.Workspace, cfg.To, cfg.From)
+
+	tmpl, err := template.New("email").Parse(emailHTML)
 	if err != nil {
 		log.Printf("alerting: failed to parse email template: %v", err)
 		return
@@ -68,6 +70,8 @@ func SendDriftAlert(report *model.DriftReport, cfg config.AlertingConfig) {
 	}
 
 	var body bytes.Buffer
+	body.WriteString(headers)
+
 	if err := tmpl.Execute(&body, data); err != nil {
 		log.Printf("alerting: failed to execute email template: %v", err)
 		return
