@@ -3,9 +3,9 @@ package alerting
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 	"log"
 	"net/smtp"
-	"html/template"
 
 	"github.com/tfdriftctl/tfdriftctl/internal/config"
 	"github.com/tfdriftctl/tfdriftctl/internal/model"
@@ -58,9 +58,9 @@ func SendDriftAlert(report *model.DriftReport, cfg config.AlertingConfig) {
 	}
 
 	data := struct {
-		Report *model.DriftReport
-		To     string
-		From   string
+		Report    *model.DriftReport
+		To        string
+		From      string
 		Workspace string
 	}{
 		Report:    report,
